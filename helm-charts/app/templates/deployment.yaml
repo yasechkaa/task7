@@ -14,12 +14,12 @@ spec:
     spec:
       containers:
         - name: app
-          image: aosoos/flask-app:v1
+          image: aosoos/flask-app:v2
           ports:
             - containerPort: 8080
           env:
             - name: DATABASE_URL
-              value: "postgresql://user:password@db-postgresql:5432/crud_db"
+              value: "postgresql://user:password@db-postgresql.db:5432/crud_db"
 ---
 apiVersion: v1
 kind: Service
