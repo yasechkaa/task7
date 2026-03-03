@@ -14,6 +14,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 cache = redis.Redis(host='redis', port=6379, db=0)
 
+# --- НОВЫЙ БЛОК (Чтобы убрать 404) ---
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "online",
+        "message": "Welcome to Flask App!",
+        "endpoints": ["/users", "/metrics"]
+    })
+
 # Модель пользователя
 class User(db.Model):
     __tablename__ = 'users'
