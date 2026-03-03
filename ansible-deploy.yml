@@ -1,0 +1,63 @@
+---
+- name: "Zero-touch Deploy k3s and ArgoCD (DoD)"
+  hosts: all
+  become: yes
+  vars:
+    # !!! ОБЯЗАТЕЛЬНО: Проверь свою ссылку на GitHub !!!
+    repo_url: 'https://github.com/aosoos/task7.git'
+
+  tasks:
+    - name: "Cleanup: Stop Docker and free ports 80/443"
+      shell: |
+        docker stop $(docker ps -aq) || true
+        fuser -k 80/tcp || true
+        fuser -k 443/tcp || true
+      ignore_errors: yes
+
+    - name: "Install k3s with Traefik disabled"
+      shell: 'curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --disable servicelb" sh -'
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: "Wait for k3s nodes to be ready"
+      command: "/usr/local/bin/k3s kubectl wait --for=condition=Ready nodes --all --timeout=600s"
+
+    - name: "Create namespaces (idempotent way)"
+      shell: "/usr/local/bin/k3s kubectl create namespace {{ item }} --dry-run=client -o yaml | /usr/local/bin/k3s kubectl apply -f -"
+      loop:
+        - argocd
+        - prod
+        - db
+        - monitoring
+
+    - name: "Install ArgoCD using Server-Side Apply with Force"
+      command: "/usr/local/bin/k3s kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+
+    - name: "Wait for ArgoCD server"
+      command: "/usr/local/bin/k3s kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s"
+
+    - name: "Create ArgoCD Master Application (GitOps)"
+      copy:
+        dest: "/tmp/argocd-root.yaml"
+        content: |
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: root-app
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: '{{ repo_url }}'
+              path: helm-charts/app
+              targetRevision: HEAD
+            destination:
+              server: 'https://kubernetes.default.svc'
+              namespace: prod
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+
+    - name: "Apply Master Application to ArgoCD"
+      command: "/usr/local/bin/k3s kubectl apply -f /tmp/argocd-root.yaml"
