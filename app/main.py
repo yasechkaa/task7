@@ -12,10 +12,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-cache = redis.Redis(host='redis.db', port=6379, db=0)
-
 with app.app_context():
     db.create_all()
+cache = redis.Redis(host='redis.db', port=6379, db=0) 
 
 @app.route('/')
 def index():
