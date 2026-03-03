@@ -12,9 +12,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-cache = redis.Redis(host='redis', port=6379, db=0)
+cache = redis.Redis(host='redis.db', port=6379, db=0)
 
-# --- ДОБАВЬ ЭТОТ БЛОК ---
+with app.app_context():
+    db.create_all()
+
 @app.route('/')
 def index():
     return jsonify({
@@ -22,7 +24,6 @@ def index():
         "message": "Welcome to Flask App!",
         "endpoints": ["/users", "/metrics"]
     })
-# ------------------------
 
 # Модель пользователя
 class User(db.Model):
